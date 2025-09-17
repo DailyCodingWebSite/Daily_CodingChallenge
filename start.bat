@@ -1,0 +1,13 @@
+@echo off
+echo Starting Daily Coding Challenge Application...
+echo.
+echo Installing dependencies...
+cd backend
+call npm install
+echo.
+echo Migrating data to MongoDB...
+call npm run migrate
+echo.
+echo Starting server...
+call npm run dev
+pause

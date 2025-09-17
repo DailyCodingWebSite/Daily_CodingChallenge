@@ -1,0 +1,30 @@
+[
+  {
+    "id":1,
+    "text":"What is 2 + 2?",
+    "options":["2","3","4","5"],
+    "answer":"4",
+    "difficulty":"easy"
+  },
+  {
+    "id":2,
+    "text":"What is 3 * 3?",
+    "options":["6","9","12","15"],
+    "answer":"9",
+    "difficulty":"easy"
+  },
+  {
+    "id":3,
+    "text":"What is the output of `console.log(typeof [])` in JavaScript?",
+    "options":["object","array","undefined","null"],
+    "answer":"object",
+    "difficulty":"medium"
+  },
+  {
+    "id":4,
+    "text":"Which HTML tag is used to define an internal style sheet?",
+    "options":["<script>","<css>","<style>","<link>"],
+    "answer":"<style>",
+    "difficulty":"medium"
+  }
+]

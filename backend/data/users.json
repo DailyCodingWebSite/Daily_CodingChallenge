@@ -1,0 +1,7 @@
+[
+  {"id":1,"username":"admin","password":"admin123","role":"admin","fullName":"Admin User","class":""},
+  {"id":2,"username":"faculty1","password":"faculty123","role":"faculty","fullName":"Faculty One","class":"CSE-A"},
+  {"id":3,"username":"student1","password":"student123","role":"student","fullName":"Student One","class":"CSE-A"},
+  {"id":4,"username":"student2","password":"student123","role":"student","fullName":"Student Two","class":"CSE-B"},
+  {"id":5,"username":"faculty2","password":"faculty123","role":"faculty","fullName":"Faculty Two","class":"IT-A"}
+]
