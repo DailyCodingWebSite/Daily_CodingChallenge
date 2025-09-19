@@ -1,235 +1,104 @@
-// === Faculty Dashboard Functionality ===
-
-// Dynamically load dependencies if needed
-['database.js', 'auth.js'].forEach(src => {
-  const s = document.createElement('script');
-  s.src = src;
-  document.head.appendChild(s);
-});
-
-let currentUser = null;
-let allStudents = [];
-let allAttempts = [];
-
-document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(initializeFacultyDashboard, 200);
-
-  // Add event listener for week picker
-  const weekInput = document.getElementById('weekPicker');
-  weekInput.addEventListener('change', () => {
-    filterData();
-  });
-});
-
-async function initializeFacultyDashboard() {
-  // Authenticate faculty user
-  currentUser = requireAuth('faculty');
-  if (!currentUser) return;
-
-  document.getElementById('facultyName').textContent = `Welcome, Faculty!`;
-
-  try {
-    // Load students and attempts from backend
-    const performanceData = await fetch('/get-student-performance', {
-      credentials: 'include'
-    });
-    
-    if (performanceData.status === 401) {
-      window.location.href = 'index.html';
-      return;
+// Manual in-browser "database"
+const studentData = [
+  {
+    name: "Alice Johnson",
+    class: "CSE-A",
+    attendance: {
+      "2025-W38": [1, 1, 0, 1, 1],
+    },
+    marks: {
+      "2025-W38": 85,
     }
-    
-    const data = await performanceData.json();
-    allStudents = data.map((item, index) => ({
-      id: index + 1, // Use consistent ID
-      fullName: item.student,
-      class: item.class,
-      role: 'student'
-    }));
-    
-    allAttempts = data.flatMap((item, index) => 
-      (item.attempts || []).map(attempt => ({
-        ...attempt,
-        userId: index + 1 // Match student ID
-      }))
-    );
-    
-    updateDashboard();
-  } catch (error) {
-    console.error('Error loading faculty data:', error);
+  },
+  {
+    name: "Bob Smith",
+    class: "CSE-A",
+    attendance: {
+      "2025-W38": [1, 0, 1, 1, 1],
+    },
+    marks: {
+      "2025-W38": 72,
+    }
+  },
+  {
+    name: "Clara Brown",
+    class: "IT-B",
+    attendance: {
+      "2025-W38": [1, 1, 1, 1, 0],
+    },
+    marks: {
+      "2025-W38": 91,
+    }
   }
+];
+
+// Utility
+function getCurrentWeek() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const week = getWeekNumber(d);
+  return `${year}-W${String(week).padStart(2, '0')}`;
+}
+function getWeekNumber(d) {
+  d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+
+// Core Rendering
+function renderDashboard() {
+  const classFilter = document.getElementById("classFilter").value;
+  const week = document.getElementById("weekPicker").value || getCurrentWeek();
+  const today = new Date().getDay() - 1; // Monday = 0
+
+  const tbody = document.getElementById("performanceTableBody");
+  tbody.innerHTML = "";
+
+  const filtered = studentData.filter(s =>
+    (!classFilter || s.class === classFilter) && s.attendance[week]
+  );
+
+  let total = filtered.length;
+  let completed = 0;
+  let missed = 0;
+  let totalMarks = 0;
+
+  filtered.forEach(s => {
+    const att = s.attendance[week];
+    const marks = s.marks[week] || 0;
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${s.name}</td>
+      <td>${s.class}</td>
+      ${att.map(d => `<td>${d ? "✔️" : "❌"}</td>`).join("")}
+      <td>${marks}</td>
+    `;
+    tbody.appendChild(row);
+
+    if (att[today] === 1) completed++;
+    else missed++;
+
+    totalMarks += marks;
+  });
+
+  document.getElementById("totalStudents").textContent = total;
+  document.getElementById("completedToday").textContent = completed;
+  document.getElementById("missedToday").textContent = missed;
+  document.getElementById("averageScore").textContent =
+    total ? `${Math.round(totalMarks / total)}%` : "0%";
 }
 
 function filterData() {
-  const classFilter = document.getElementById('classFilter').value;
-
-  // Parse the selected week to a Monday–Friday range
-  const weekValue = document.getElementById('weekPicker').value; // Format: "2025-W38"
-  const { start, end } = parseWeekToRange(weekValue);
-
-  const attempts = allAttempts.filter(a => {
-    const d = new Date(a.date);
-    return d >= start && d <= end;
-  });
-
-  const students = classFilter ? allStudents.filter(s => s.class === classFilter) : allStudents;
-
-  updateStatistics(students, attempts);
-  updateAttendanceTable(students, attempts, { start, end });
+  renderDashboard();
 }
 
-// Parse ISO week string to Monday–Friday dates
-function parseWeekToRange(isoWeek) {
-  if (!isoWeek) {
-    // Default to current week if no week selected
-    const today = new Date();
-    const day = today.getDay() || 7; // Make Sunday = 7
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - day + 1);
-    const friday = new Date(monday);
-    friday.setDate(monday.getDate() + 4);
-    return { start: monday, end: friday };
-  }
-
-  const [year, week] = isoWeek.split('-W').map(Number);
-
-  // Find the first Thursday of the year
-  const jan4 = new Date(year, 0, 4);
-  const day = jan4.getDay() || 7; // Make Sunday = 7
-  const monday = new Date(jan4);
-  monday.setDate(jan4.getDate() - day + 1 + (week - 1) * 7); // Monday of ISO week
-
-  const friday = new Date(monday);
-  friday.setDate(monday.getDate() + 4); // Friday of the same week
-  return { start: monday, end: friday };
+function logout() {
+  window.location.href = "index.html";
 }
 
-function updateDashboard(classFilter = '', selectedWeek = '') {
-  const students = classFilter ? allStudents.filter(s => s.class === classFilter) : allStudents;
-
-  const dateRange = getDateRangeFromWeek(selectedWeek);
-
-  const attempts = allAttempts.filter(a => {
-    const d = new Date(a.date);
-    return d >= dateRange.start && d <= dateRange.end;
-  });
-
-  updateStatistics(students, attempts);
-  updateAttendanceTable(students, attempts, dateRange);
-}
-
-function getDateRangeFromWeek(weekValue) {
-  if (!weekValue) {
-    const today = new Date();
-    const day = today.getDay() || 7;
-    const start = new Date(today);
-    start.setDate(today.getDate() - day + 1); // Monday
-    const end = new Date(start);
-    end.setDate(start.getDate() + 4); // Friday
-    return { start, end };
-  }
-
-  // weekValue is like "2025-W37"
-  const [year, week] = weekValue.split('-W');
-  const firstDayOfYear = new Date(year, 0, 1);
-  const daysOffset = (parseInt(week) - 1) * 7;
-  const monday = new Date(firstDayOfYear.setDate(firstDayOfYear.getDate() - firstDayOfYear.getDay() + 1 + daysOffset));
-  const friday = new Date(monday);
-  friday.setDate(monday.getDate() + 4);
-  return { start, monday, end: friday };
-}
-
-function updateStatistics(students, attempts) {
-  const today = new Date().toISOString().split('T')[0];
-  const todayAttempts = attempts.filter(a => a.date === today);
-
-  const totalStudents = students.length;
-  const completedToday = todayAttempts.length;
-  const missedToday = totalStudents - completedToday;
-
-  const avg = attempts.length
-    ? Math.round(attempts.reduce((sum, a) => sum + (a.percentage || 0), 0) / attempts.length)
-    : 0;
-
-  document.getElementById('totalStudents').textContent = totalStudents;
-  document.getElementById('completedToday').textContent = completedToday;
-  document.getElementById('missedToday').textContent = missedToday;
-  document.getElementById('averageScore').textContent = `${avg}%`;
-}
-
-function updateAttendanceTable(students, attempts, dateRange) {
-  const tbody = document.getElementById('performanceTableBody');
-  const thead = document.querySelector('#performanceTable thead tr');
-  
-  // Clear existing content
-  tbody.innerHTML = '';
-  
-  // Generate date range for the week
-  const dates = generateDateRange(dateRange.start, dateRange.end);
-  
-  // Update table header with actual dates
-  thead.innerHTML = `
-    <th>Student Name</th>
-    <th>Class</th>
-    <th>Mon</th>
-    <th>Tue</th>
-    <th>Wed</th>
-    <th>Thu</th>
-    <th>Fri</th>
-    <th>Marks</th>
-  `;
-
-  // Map: userId → attempts + total marks
-  const attemptMap = new Map();
-  attempts.forEach(a => {
-    if (!attemptMap.has(a.userId)) {
-      attemptMap.set(a.userId, { dates: new Set(), totalMarks: 0 });
-    }
-    const data = attemptMap.get(a.userId);
-    data.dates.add(a.date);
-    data.totalMarks += a.score || 0; // Use score field from your DB
-  });
-
-  students.forEach(student => {
-    const tr = document.createElement('tr');
-    
-    // Add student name and class
-    tr.innerHTML = `
-      <td>${student.fullName}</td>
-      <td>${student.class}</td>
-    `;
-
-    // Add attendance for each day of the week
-    dates.forEach(date => {
-      const td = document.createElement('td');
-      const attended = attemptMap.get(student.id)?.dates.has(date);
-      
-      if (attended) {
-        td.innerHTML = '<span class="attendance attended">✔</span>';
-      } else {
-        td.innerHTML = '<span class="attendance missed">✘</span>';
-      }
-      
-      tr.appendChild(td);
-    });
-
-    // Add Marks column
-    const marksCell = document.createElement('td');
-    marksCell.textContent = attemptMap.get(student.id)?.totalMarks || '0';
-    marksCell.className = 'marks';
-    tr.appendChild(marksCell);
-
-    tbody.appendChild(tr);
-  });
-}
-
-function generateDateRange(start, end) {
-  const dates = [];
-  const current = new Date(start);
-  while (current <= end) {
-    dates.push(current.toISOString().split('T')[0]);
-    current.setDate(current.getDate() + 1);
-  }
-  return dates;
-}
-
+window.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("weekPicker").value = getCurrentWeek();
+  renderDashboard();
+});
